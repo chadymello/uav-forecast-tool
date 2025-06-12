@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAV Forecast - Análise de Condições de Voo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="80" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="60" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(52, 152, 219, 0.3);
+        }
+
+        .weather-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .weather-item {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .weather-item:hover {
+            border-color: #3498db;
+            transform: scale(1.05);
+        }
+
+        .weather-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .weather-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .condition-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .condition-good {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+        }
+
+        .condition-caution {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .condition-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .recommendation-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .recommendation-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .recommendation-list {
+            list-style: none;
+        }
+
+        .recommendation-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .recommendation-list li:last-child {
+            border-bottom: none;
+        }
+
+        .status-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .icon-good { background: #2ecc71; }
+        .icon-caution { background: #f39c12; }
+        .icon-danger { background: #e74c3c; }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .weather-display {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .location-info {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .coordinates {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚁 UAV Forecast</h1>
+            <p>Análise Completa de Condições para Voo de Drones</p>
+        </div>
+
+        <div class="main-content">
+            <div class="section">
+                <h2>📍 Localização e Configurações</h2>
+                
+                <div class="input-group">
+                    <label for="location">Localização:</label>
+                    <input type="text" id="location" placeholder="Digite cidade ou coordenadas (ex: São Paulo, SP)">
+                </div>
+
+                <div class="input-group">
+                    <label for="drone-type">Tipo de Drone:</label>
+                    <select id="drone-type">
+                        <option value="consumer">Consumidor (DJI Mini, etc.)</option>
+                        <option value="prosumer">Prosumer (DJI Mavic, etc.)</option>
+                        <option value="professional">Profissional (DJI Inspire, etc.)</option>
+                        <option value="racing">Racing/FPV</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="flight-type">Tipo de Voo:</label>
+                    <select id="flight-type">
+                        <option value="recreational">Recreativo</option>
+                        <option value="photography">Fotografia/Filmagem</option>
+                        <option value="mapping">Mapeamento</option>
+                        <option value="inspection">Inspeção</option>
+                        <option value="delivery">Entrega</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="analyzeConditions()">🔍 Analisar Condições</button>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analisando condições meteorológicas...</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🌤️ Condições Meteorológicas</h2>
+                
+                <div id="location-info" class="location-info" style="display: none;">
+                    <div id="current-location"></div>
+                    <div id="coordinates" class="coordinates"></div>
+                </div>
+
+                <div class="weather-display" id="weather-display">
+                    <div class="weather-item">
+                        <div class="weather-value" id="temperature">--°C</div>
+                        <div class="weather-label">Temperatura</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-value" id="humidity">--%</div>
+                        <div class="weather-label">Umidade</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-value" id="wind-speed">-- km/h</div>
+                        <div class="weather-label">Vento</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-value" id="pressure">-- hPa</div>
+                        <div class="weather-label">Pressão</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-value" id="visibility">-- km</div>
+                        <div class="weather-label">Visibilidade</div>
+                    </div>
+                    <div class="weather-item">
+                        <div class="weather-value" id="precipitation">--%</div>
+                        <div class="weather-label">Precipitação</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>⚡ Análise de Condições de Voo</h2>
+                
+                <div id="flight-conditions">
+                    <div class="condition-indicator condition-good">
+                        <span>Condições Gerais</span>
+                        <span class="status-icon icon-good">?</span>
+                    </div>
+                    <div class="condition-indicator condition-good">
+                        <span>Velocidade do Vento</span>
+                        <span class="status-icon icon-good">?</span>
+                    </div>
+                    <div class="condition-indicator condition-good">
+                        <span>Visibilidade</span>
+                        <span class="status-icon icon-good">?</span>
+                    </div>
+                    <div class="condition-indicator condition-good">
+                        <span>Precipitação</span>
+                        <span class="status-icon icon-good">?</span>
+                    </div>
+                    <div class="condition-indicator condition-good">
+                        <span>Temperatura</span>
+                        <span class="status-icon icon-good">?</span>
+                    </div>
+                </div>
+
+                <div class="recommendation-card">
+                    <h3>📋 Recomendações de Voo</h3>
+                    <ul class="recommendation-list" id="recommendations">
+                        <li>⏳ Aguardando análise das condições meteorológicas...</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulação de dados meteorológicos (em uma aplicação real, estes dados viriam de uma API como OpenWeatherMap)
+        function simulateWeatherData(location) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Dados simulados baseados em condições típicas do Brasil
+                    const weatherData = {
+                        location: location || "São Paulo, SP",
+                        coordinates: "-23.5505, -46.6333",
+                        temperature: Math.round(18 + Math.random() * 15), // 18-33°C
+                        humidity: Math.round(40 + Math.random() * 40), // 40-80%
+                        windSpeed: Math.round(Math.random() * 25), // 0-25 km/h
+                        windDirection: Math.round(Math.random() * 360), // 0-360°
+                        pressure: Math.round(1010 + Math.random() * 20), // 1010-1030 hPa
+                        visibility: Math.round(5 + Math.random() * 15), // 5-20 km
+                        precipitation: Math.round(Math.random() * 20), // 0-20%
+                        cloudCover: Math.round(Math.random() * 100), // 0-100%
+                        uvIndex: Math.round(Math.random() * 11) // 0-11
+                    };
+                    resolve(weatherData);
+                }, 2000);
+            });
+        }
+
+        function getDroneSpecs(droneType) {
+            const specs = {
+                consumer: { maxWind: 10, minTemp: 0, maxTemp: 40, maxAltitude: 500 },
+                prosumer: { maxWind: 15, minTemp: -10, maxTemp: 40, maxAltitude: 1000 },
+                professional: { maxWind: 20, minTemp: -20, maxTemp: 45, maxAltitude: 2000 },
+                racing: { maxWind: 25, minTemp: -10, maxTemp: 50, maxAltitude: 500 },
+                custom: { maxWind: 15, minTemp: -10, maxTemp: 40, maxAltitude: 1000 }
+            };
+            return specs[droneType] || specs.consumer;
+        }
+
+        function analyzeFlightConditions(weatherData, droneSpecs) {
+            const conditions = {
+                overall: 'good',
+                wind: 'good',
+                visibility: 'good',
+                precipitation: 'good',
+                temperature: 'good'
+            };
+
+            const recommendations = [];
+
+            // Análise do vento
+            if (weatherData.windSpeed > droneSpecs.maxWind) {
+                conditions.wind = 'danger';
+                conditions.overall = 'danger';
+                recommendations.push(`⚠️ Vento muito forte (${weatherData.windSpeed} km/h). Limite recomendado: ${droneSpecs.maxWind} km/h`);
+            } else if (weatherData.windSpeed > droneSpecs.maxWind * 0.7) {
+                conditions.wind = 'caution';
+                if (conditions.overall === 'good') conditions.overall = 'caution';
+                recommendations.push(`⚡ Vento moderado (${weatherData.windSpeed} km/h). Voe com cautela e evite manobras bruscas`);
+            } else {
+                recommendations.push(`✅ Condições de vento favoráveis (${weatherData.windSpeed} km/h)`);
+            }
+
+            // Análise da visibilidade
+            if (weatherData.visibility < 1) {
+                conditions.visibility = 'danger';
+                conditions.overall = 'danger';
+                recommendations.push(`⚠️ Visibilidade muito baixa (${weatherData.visibility} km). Voo não recomendado`);
+            } else if (weatherData.visibility < 3) {
+                conditions.visibility = 'caution';
+                if (conditions.overall === 'good') conditions.overall = 'caution';
+                recommendations.push(`⚡ Visibilidade reduzida (${weatherData.visibility} km). Mantenha o drone próximo`);
+            } else {
+                recommendations.push(`✅ Boa visibilidade (${weatherData.visibility} km)`);
+            }
+
+            // Análise da precipitação
+            if (weatherData.precipitation > 10) {
+                conditions.precipitation = 'danger';
+                conditions.overall = 'danger';
+                recommendations.push(`⚠️ Alta probabilidade de chuva (${weatherData.precipitation}%). Voo não recomendado`);
+            } else if (weatherData.precipitation > 5) {
+                conditions.precipitation = 'caution';
+                if (conditions.overall === 'good') conditions.overall = 'caution';
+                recommendations.push(`⚡ Possibilidade de chuva (${weatherData.precipitation}%). Monitore o céu constantemente`);
+            } else {
+                recommendations.push(`✅ Baixa probabilidade de precipitação (${weatherData.precipitation}%)`);
+            }
+
+            // Análise da temperatura
+            if (weatherData.temperature < droneSpecs.minTemp || weatherData.temperature > droneSpecs.maxTemp) {
+                conditions.temperature = 'caution';
+                if (conditions.overall === 'good') conditions.overall = 'caution';
+                recommendations.push(`⚡ Temperatura fora da faixa ideal (${weatherData.temperature}°C). Monitore a bateria`);
+            } else {
+                recommendations.push(`✅ Temperatura adequada (${weatherData.temperature}°C)`);
+            }
+
+            // Recomendações gerais baseadas no tipo de voo
+            const flightType = document.getElementById('flight-type').value;
+            
+            if (flightType === 'photography' || flightType === 'mapping') {
+                recommendations.push(`📸 Para ${flightType === 'photography' ? 'fotografia' : 'mapeamento'}: prefira horários com luz dourada (nascer/pôr do sol)`);
+                if (weatherData.cloudCover < 30) {
+                    recommendations.push(`☀️ Céu claro - ideal para captura de imagens`);
+                } else if (weatherData.cloudCover > 70) {
+                    recommendations.push(`☁️ Céu nublado - pode afetar a qualidade das imagens`);
+                }
+            }
+
+            // Recomendações de bateria baseadas na temperatura
+            if (weatherData.temperature < 10) {
+                recommendations.push(`🔋 Temperatura baixa - aqueça as baterias antes do voo`);
+            } else if (weatherData.temperature > 35) {
+                recommendations.push(`🔋 Temperatura alta - deixe as baterias esfriarem entre voos`);
+            }
+
+            // Recomendações de UV
+            if (weatherData.uvIndex > 7) {
+                recommendations.push(`☀️ Índice UV alto (${weatherData.uvIndex}) - proteja-se adequadamente`);
+            }
+
+            return { conditions, recommendations };
+        }
+
+        function updateWeatherDisplay(weatherData) {
+            document.getElementById('temperature').textContent = `${weatherData.temperature}°C`;
+            document.getElementById('humidity').textContent = `${weatherData.humidity}%`;
+            document.getElementById('wind-speed').textContent = `${weatherData.windSpeed} km/h`;
+            document.getElementById('pressure').textContent = `${weatherData.pressure} hPa`;
+            document.getElementById('visibility').textContent = `${weatherData.visibility} km`;
+            document.getElementById('precipitation').textContent = `${weatherData.precipitation}%`;
+
+            // Mostrar informações de localização
+            document.getElementById('current-location').textContent = weatherData.location;
+            document.getElementById('coordinates').textContent = `Coordenadas: ${weatherData.coordinates}`;
+            document.getElementById('location-info').style.display = 'block';
+        }
+
+        function updateConditionsDisplay(analysis) {
+            const conditionElements = document.querySelectorAll('.condition-indicator');
+            const conditionTypes = ['overall', 'wind', 'visibility', 'precipitation', 'temperature'];
+            
+            conditionElements.forEach((element, index) => {
+                const conditionType = conditionTypes[index];
+                const status = analysis.conditions[conditionType];
+                
+                // Remover classes antigas
+                element.classList.remove('condition-good', 'condition-caution', 'condition-danger');
+                
+                // Adicionar nova classe
+                element.classList.add(`condition-${status}`);
+                
+                // Atualizar ícone
+                const icon = element.querySelector('.status-icon');
+                icon.classList.remove('icon-good', 'icon-caution', 'icon-danger');
+                icon.classList.add(`icon-${status}`);
+                
+                // Atualizar texto do ícone
+                const iconText = status === 'good' ? '✓' : status === 'caution' ? '!' : '✗';
+                icon.textContent = iconText;
+            });
+
+            // Atualizar recomendações
+            const recommendationsList = document.getElementById('recommendations');
+            recommendationsList.innerHTML = '';
+            
+            analysis.recommendations.forEach(recommendation => {
+                const li = document.createElement('li');
+                li.textContent = recommendation;
+                recommendationsList.appendChild(li);
+            });
+        }
+
+        async function analyzeConditions() {
+            const location = document.getElementById('location').value || 'São Paulo, SP';
+            const droneType = document.getElementById('drone-type').value;
+            
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                // Simular busca de dados meteorológicos
+                const weatherData = await simulateWeatherData(location);
+                
+                // Obter especificações do drone
+                const droneSpecs = getDroneSpecs(droneType);
+                
+                // Analisar condições
+                const analysis = analyzeFlightConditions(weatherData, droneSpecs);
+                
+                // Atualizar displays
+                updateWeatherDisplay(weatherData);
+                updateConditionsDisplay(analysis);
+                
+            } catch (error) {
+                console.error('Erro ao analisar condições:', error);
+                alert('Erro ao obter dados meteorológicos. Tente novamente.');
+            } finally {
+                // Esconder loading
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Inicializar com dados padrão
+        window.addEventListener('load', () => {
+            // Definir localização padrão baseada na informação do usuário
+            document.getElementById('location').value = 'Sant\'Ana do Livramento, RS';
+            analyzeConditions();
+        });
+
+        // Análise automática quando os campos mudam
+        document.getElementById('drone-type').addEventListener('change', () => {
+            if (document.getElementById('temperature').textContent !== '--°C') {
+                analyzeConditions();
+            }
+        });
+
+        document.getElementById('flight-type').addEventListener('change', () => {
+            if (document.getElementById('temperature').textContent !== '--°C') {
+                analyzeConditions();
+            }
+        });
+
+        // Enter para buscar localização
+        document.getElementById('location').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                analyzeConditions();
+            }
+        });
+    </script>
+</body>
+</html>
